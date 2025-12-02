@@ -1,0 +1,146 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform.name }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: macOS-ARM64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            binary_src: telepipe
+            binary_dest: telepipe-darwin-arm64
+          - name: macOS-x86_64
+            os: macos-13
+            target: x86_64-apple-darwin
+            binary_src: telepipe
+            binary_dest: telepipe-darwin-x64
+          - name: Linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary_src: telepipe
+            binary_dest: telepipe-linux-x64
+          - name: Windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary_src: telepipe.exe
+            binary_dest: telepipe-windows-x64.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.platform.target }}
+
+      - name: Rename binary
+        shell: bash
+        run: |
+          cp "target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary_src }}" "${{ matrix.platform.binary_dest }}"
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform.binary_dest }}
+          path: ${{ matrix.platform.binary_dest }}
+
+  publish:
+    name: Publish npm Package
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download all binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare bin directory
+        run: |
+          mkdir -p bin
+
+          # Move all binaries to bin/
+          mv artifacts/telepipe-darwin-arm64/telepipe-darwin-arm64 bin/
+          mv artifacts/telepipe-darwin-x64/telepipe-darwin-x64 bin/
+          mv artifacts/telepipe-linux-x64/telepipe-linux-x64 bin/
+          mv artifacts/telepipe-windows-x64.exe/telepipe-windows-x64.exe bin/
+
+          # Make Unix binaries executable
+          chmod +x bin/telepipe-darwin-arm64
+          chmod +x bin/telepipe-darwin-x64
+          chmod +x bin/telepipe-linux-x64
+
+          # List binaries
+          echo "Binaries in bin/:"
+          ls -la bin/
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Update package.json version
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          TARGET=${{ steps.version.outputs.version }}
+          if [ "$CURRENT" != "$TARGET" ]; then
+            npm version $TARGET --no-git-tag-version
+            echo "Version updated: $CURRENT → $TARGET"
+          else
+            echo "Version already $TARGET, skipping update"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            bin/telepipe-darwin-arm64
+            bin/telepipe-darwin-x64
+            bin/telepipe-linux-x64
+            bin/telepipe-windows-x64.exe
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to npm
+        if: ${{ !contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc') && !contains(github.ref, 'test') }}
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish pre-release to npm
+        if: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+        run: npm publish --access public --tag next
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

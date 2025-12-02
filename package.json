@@ -1,0 +1,57 @@
+{
+  "name": "telepipe",
+  "version": "1.0.0",
+  "description": "AI can write code. Now it can run it. Give your AI eyes, hands, and the ability to verify its own work",
+  "keywords": [
+    "ai",
+    "agents",
+    "tcp",
+    "tunnels",
+    "chrome-devtools",
+    "cdp",
+    "automation",
+    "cli",
+    "telepipe",
+    "claude",
+    "codex",
+    "llm"
+  ],
+  "author": "G Six <g@teleplank.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/teleplank/telepipe.git"
+  },
+  "homepage": "https://github.com/teleplank/telepipe#readme",
+  "bugs": {
+    "url": "https://github.com/teleplank/telepipe/issues"
+  },
+  "bin": {
+    "telepipe": "./bin/telepipe"
+  },
+  "files": [
+    "bin/telepipe-darwin-arm64",
+    "bin/telepipe-darwin-x64",
+    "bin/telepipe-linux-x64",
+    "bin/telepipe-windows-x64.exe",
+    "scripts/postinstall.js",
+    "docs/for-agents/**",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
+}

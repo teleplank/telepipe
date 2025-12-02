@@ -1,0 +1,23 @@
+# Build outputs
+/target/
+/node_modules/
+/bin/telepipe*
+!/bin/.gitkeep
+
+
+# IDE
+.DS_Store
+.idea/
+.vscode/
+.claude/
+
+# testing
+.chrome-user-data-dir/
+
+# NEVER COMMIT THESE TO PUBLIC
+/reference/
+*-prompt*.md
+*PROMPT*.md
+REBRAND-*.md
+create-public-branch.sh
+PUBLIC-RELEASE-CHECKLIST.md

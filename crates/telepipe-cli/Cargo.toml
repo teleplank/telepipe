@@ -1,0 +1,14 @@
+[package]
+name = "telepipe-cli"
+version = "0.3.0"
+edition = "2021"
+authors = ["G Six <g@teleplank.com>"]
+description = "Telepipe CLI application"
+license = "MIT"
+
+[[bin]]
+name = "telepipe"
+path = "src/main.rs"
+
+[dependencies]
+telepipe-core = { path = "../telepipe-core" }

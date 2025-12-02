@@ -1,0 +1,65 @@
+name: telepipe-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          components: rustfmt, clippy
+      - name: Format check
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --workspace
+  build-matrix:
+    needs: lint-test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Build telepipe CLI
+        run: cargo build --release -p telepipe-cli
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: telepipe-${{ matrix.os }}
+          path: target/release/telepipe*
+  npm-wrapper:
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Prepare npm package
+        working-directory: npm-package
+        run: |
+          npm install
+          npm run lint --if-present
+          npm pack
+      - name: Archive npm artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: telepipe-npm
+          path: npm-package/*.tgz
